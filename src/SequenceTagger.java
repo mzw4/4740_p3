@@ -21,7 +21,6 @@ public class SequenceTagger {
 	private final float weakTypeWeight = 0.5f;
 		
 	public SequenceTagger() {
-		hmm = new HMM();
 		TPmap = new HashMap<>();
 		initialProbMap = new HashMap<>();
 		lexiconPolarities = new HashMap<>();
@@ -185,10 +184,24 @@ public class SequenceTagger {
 		}
 	}
 	
+	public HashMap<HMM.State, HashMap<HMM.State, Float>> getTPs() {
+		return TPmap;
+	}
+	
+	public HashMap<HMM.State, Float> getInitialProbs() {
+		return initialProbMap;
+	}
+	
+	public HashMap<String, Float> getLexiconPolarities() {
+		return lexiconPolarities;
+	}
+	
 	public static void main(String[] args) {
 		SequenceTagger tagger = new SequenceTagger();
 		tagger.train("src/training_data.txt");
 		tagger.parseSentimentLexicon("src/sentimentlexicon.tff");
+		HMM hmm = new HMM(tagger.getTPs(), tagger.getInitialProbs());
+		hmm.addPolarities(tagger.getLexiconPolarities());
 		System.out.println("Done");
 	}
 }
