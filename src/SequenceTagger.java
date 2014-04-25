@@ -3,6 +3,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 
@@ -11,10 +12,17 @@ public class SequenceTagger {
 	
 	private HashMap<HMM.State, HashMap<HMM.State, Float>> TPmap;
 	private int numEntries = 0;
-	
+		
 	public SequenceTagger() {
 		hmm = new HMM();
 		TPmap = new HashMap<HMM.State, HashMap<HMM.State, Float>>();
+	}
+	
+	/*
+	 * 
+	 */
+	public void parseSentimentLexicon() {
+		
 	}
 	
 	/*
@@ -43,6 +51,11 @@ public class SequenceTagger {
 					numEntries++;
 					updateTPMap(state, prevState);
 					prevState = state;
+					
+					ArrayList<String> featureVector = new ArrayList<>();
+					for(String word: line.split(" ")) {
+						
+					}
 				}
 			}
 		} catch (FileNotFoundException e) {
