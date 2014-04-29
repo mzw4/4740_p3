@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 
 
 public class SequenceTagger {
@@ -15,10 +16,14 @@ public class SequenceTagger {
 	private int numReviews = 0;
 	private int numEntries = 0;
 	
-	private HashMap<String, Float> lexiconPolarities;
+	private HashMap<String, Float> lexiconPolarities = new HashMap<String, Float>();
+	private HashMap<String, Double> posFPs;
+	private HashMap<String, Double> neuFPs;
+	private HashMap<String, Double> negFPs;
 	
 	private final float strongTypeWeight = 1.0f;
 	private final float weakTypeWeight = 0.5f;
+	private final int GOOD_TURING_K = 5;
 		
 	public SequenceTagger() {
 		TPmap = new HashMap<>();
@@ -82,7 +87,116 @@ public class SequenceTagger {
 	 * Train the tagger on the training data
 	 * Calculates TP and EP values
 	 */
+	
 	public void train(String filename) {
+		trainTPs(filename);
+		trainEPs(filename);
+	}
+	
+	public void trainEPs(String filename) {
+		File file = new File(filename);
+		BufferedReader reader;
+		
+		try{
+			reader = new BufferedReader(new FileReader(file));
+			String line;
+			HMM.State currState;
+			
+			while((line = reader.readLine()) != null) {
+				if(line.startsWith("pos")) currState = HMM.State.POS;
+				else if (line.startsWith("neu")) currState = HMM.State.NEUT;
+				else if (line.startsWith("neg")) currState = HMM.State.NEG;
+				else continue;			//Ignore lines not starting with "pos", "neu" or "neg", these are the review headers and the empty lines which are irrelevant
+				String processed = line.replaceAll("([(),!.?;:])", " $1 ");
+				String[] tokens = processed.split("\\s+");
+				
+				for(int a = 0; a < tokens.length; a++) {
+					if(lexiconPolarities.containsKey(tokens[a])) {				//If the word is contained in the sentiment lexicon, process it
+						switch (currState) {
+						case POS: 	if(posFPs.containsKey(tokens[a])) {
+										posFPs.put(tokens[a], posFPs.get(tokens[a]) + 1.0);
+									} else posFPs.put(tokens[a], 1.0);
+									break;
+						case NEUT:	if(neuFPs.containsKey(tokens[a])) {
+										neuFPs.put(tokens[a], neuFPs.get(tokens[a]) + 1.0);
+									} else neuFPs.put(tokens[a], 1.0);
+									break;
+						case NEG:	if(negFPs.containsKey(tokens[a])) {
+										negFPs.put(tokens[a], negFPs.get(tokens[a]) + 1.0);
+									} else negFPs.put(tokens[a], 1.0);
+									break;
+						default:	break;
+						}
+					}
+					else { //Otherwise ignore it
+					}
+				}
+				//This finishes the processing of the line
+			}
+			//Now all the lines of the document are processed, we need to smooth and convert the raw values to the relevant percentages
+			posFPs = smooth(posFPs);
+			negFPs = smooth(negFPs);
+			neuFPs = smooth(neuFPs);
+		}
+		catch(FileNotFoundException e) {
+			e.printStackTrace();
+		}
+		catch(IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	public HashMap<String, Double> smooth(HashMap<String, Double> data) {
+		HashMap<String, Double> smoothedData = new HashMap<String, Double>();
+		Iterator<Double> iterator = data.values().iterator();
+		int counts[] = new int[GOOD_TURING_K + 2];
+		
+		//Initialize values to 0
+		for(int a = 0; a < counts.length; a++) {
+			counts[a] = 0;
+		}
+		
+		while(iterator.hasNext()) {
+			double val = iterator.next();
+			if (val >= 0 && val <= GOOD_TURING_K) {
+				counts[(int) val] = counts[(int) val] + 1;
+			}
+		}
+		
+		double c_stars[] = new double[GOOD_TURING_K + 1];
+		c_stars[0] = (double) counts[1]; //initalize c_star[0] to be N_1
+		
+		for(int a = 1; a <= GOOD_TURING_K; a++) {
+			//use the Katz 1987 formula (page 103 of the book) to calculate c_star given the value k
+			double c = (double) a;
+			
+			double katz_numerator = ((c+1) * ((double) counts[a+1])/((double) counts[a])) - 
+									(c * (((double) (GOOD_TURING_K + 1) * counts[a+1]) / counts[a]));
+			double katz_denominator = (double) (1 - (((double) (GOOD_TURING_K + 1) * counts[a+1]) / (double) counts[a]));
+			
+			c_stars[a] = katz_numerator / katz_denominator;
+		}
+		
+		//Now iterate over the strings and replace the old values with the new smoothed values
+		Iterator<String> stringIterator = data.keySet().iterator();
+		
+		while(stringIterator.hasNext()) {
+			String nextWord = stringIterator.next();
+			double unsmoothedCount = data.get(nextWord);
+			
+			if(unsmoothedCount >= 0 && unsmoothedCount <= GOOD_TURING_K) {
+				smoothedData.put(nextWord, c_stars[(int) unsmoothedCount]);
+			}
+			else smoothedData.put(nextWord, unsmoothedCount);
+		}
+		
+		return smoothedData;
+	}
+	
+	/*
+	 * Trains the TPs
+	 */
+	public void trainTPs(String filename) {
 		File file = new File(filename);
 		BufferedReader reader;
 		try {
@@ -196,12 +310,25 @@ public class SequenceTagger {
 		return lexiconPolarities;
 	}
 	
+	public HashMap<String, Double> getPosFPs() {
+		return posFPs;
+	}
+	
+	public HashMap<String, Double> getNeuFPs() {
+		return neuFPs;
+	}
+	
+	public HashMap<String, Double> getNegFPs() {
+		return negFPs;
+	}
+	
 	public static void main(String[] args) {
 		SequenceTagger tagger = new SequenceTagger();
-		tagger.train("src/training_data.txt");
 		tagger.parseSentimentLexicon("src/sentimentlexicon.tff");
+		tagger.train("src/training_data.txt");
 		HMM hmm = new HMM(tagger.getTPs(), tagger.getInitialProbs());
 		hmm.addPolarities(tagger.getLexiconPolarities());
+		hmm.addFPs(tagger.getPosFPs(), tagger.getNeuFPs(), tagger.getNegFPs());
 		System.out.println("Done");
 	}
 }
