@@ -43,13 +43,14 @@ public class HMM {
 		Scanner in = new Scanner(data);
 		ArrayList<String> review_lines = new ArrayList<>();
 		StringBuffer buffer = new StringBuffer("");
+		State docSentiment = State.POS;
 		Pattern header = Pattern.compile("[a-z]*_[a-z]*_[0-9]*");	//matches on review headers eg electronics_neg_7
 		
 		while(in.hasNextLine()) {
 			String next = in.nextLine();
 			if(next.equals("")) {						//If we've come to one of the empty lines
 				
-				extractEPs(buffer.toString());			//That's the end of the review so pass it to the EP extractor
+				extractEPs(buffer.toString(), docSentiment);			//That's the end of the review so pass it to the EP extractor
 				//TODO: Run the Viterbi algorithm since the global EPs was set by the above
 				HMM.State[] states = outputSentiment();
 				for(int i = 0; i < states.length; i++) {
@@ -59,8 +60,18 @@ public class HMM {
 				review_lines.clear();
 				buffer.delete(0, buffer.length());		//Clear the buffer
 			}
-			else if(header.matcher(next).matches()){	//It's the name of a review so ignore it
-				System.out.println(next);
+			else if(header.matcher(next).matches()){	//Extract the document sentiment
+				String sentiment = next.replaceAll("[a-z]*_([a-z]*)_[0-9]*", "$1");
+				switch(sentiment) {
+				case "pos" : 	docSentiment = State.POS;
+								break;
+				case "neu" :	docSentiment = State.NEUT;
+								break;
+				case "neg" : 	docSentiment = State.NEG;
+								break;
+				default :		docSentiment = State.NEUT;
+								break;
+				}
 			}
 			else {										//It's a sentence of the review
 				buffer.append(next.substring(4));		//Trim the "neu " off the front and add it to the buffer
@@ -70,8 +81,20 @@ public class HMM {
 		}
 	}
 	
-	public void extractEPs(String data) {				//Sets the global variable EPs based on the review
+	public void extractEPs(String data, HMM.State docSentiment) {				//Sets the global variable EPs based on the review
 		ArrayList<double[]> emissions = new ArrayList<double[]>();
+		
+		double docMultiplier;
+		switch(docSentiment) {
+		case POS :	docMultiplier = 1.5;
+					break;
+		case NEUT :	docMultiplier = 1.0;
+					break;
+		case NEG :	docMultiplier = 2.0/3.0;
+					break;
+		default :	docMultiplier = 1.0;
+					break;
+		}
 		
 		Scanner reader = new Scanner(data);
 		while(reader.hasNextLine()){
@@ -79,7 +102,7 @@ public class HMM {
 			ArrayList<String> features = new ArrayList<String>();
 			
 			String sentence = reader.nextLine();
-			String processed = sentence.replaceAll("([(),!.?;:])", " $1 ");	//add padding around punctuation
+			String processed = sentence.replaceAll("([(),!.?;:])", " $1 ").toLowerCase();	//add padding around punctuation
 			String[] words = processed.split("\\s+");						//split on whitespace
 			for(int a = 0; a < words.length; a++) {
 				if(lexiconPolarities.containsKey(words[a])) {
@@ -111,9 +134,9 @@ public class HMM {
 						multiplier = .5;
 					}
 					else multiplier = 1;
-					probs[0] = probs[0] * posFPs.get(w) * multiplier;
+					probs[0] = probs[0] * posFPs.get(w) * multiplier * docMultiplier;
 					probs[1] = probs[1] * neuFPs.get(w);
-					probs[2] = probs[2] * negFPs.get(w) * (1.0 / multiplier);
+					probs[2] = probs[2] * negFPs.get(w) * (1.0 / multiplier) * (1.0 / docMultiplier);
 				}
 				probs[1] = probs[1] * (NEUTRAL_INIT / (NEUTRAL_INIT + features.size()));	//multiply neutral by PARAM / (PARAM + numFeatures))
 				emissions.add(probs);
