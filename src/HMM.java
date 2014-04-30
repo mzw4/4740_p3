@@ -64,6 +64,7 @@ public class HMM {
 			}
 			else {										//It's a sentence of the review
 				buffer.append(next.substring(4));		//Trim the "neu " off the front and add it to the buffer
+				buffer.append("\n");
 				review_lines.add(next.substring(4));
 			}
 		}
@@ -109,7 +110,7 @@ public class HMM {
 					else if (polarity == -1.0f) {
 						multiplier = .5;
 					}
-					else multiplier = 0;
+					else multiplier = 1;
 					probs[0] = probs[0] * posFPs.get(w) * multiplier;
 					probs[1] = probs[1] * neuFPs.get(w);
 					probs[2] = probs[2] * negFPs.get(w) * (1.0 / multiplier);
