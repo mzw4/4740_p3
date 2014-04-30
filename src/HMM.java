@@ -1,3 +1,5 @@
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Scanner;
@@ -24,6 +26,10 @@ public class HMM {
 	private HashMap<String, Float> lexiconPolarities;
 	private final double NEUTRAL_INIT = 3.0;
 	
+	/* For testing purposes */
+	private ArrayList<HMM.State> currReview; //stores list of sentiments in review
+	private int numSentences; //total number of sentences
+	
 	public HMM(HashMap<HMM.State, HashMap<HMM.State, Float>> transitions, HashMap<HMM.State, Float> SPs) {	
 		TPMap = transitions;
 		StartProbs = SPs;
@@ -45,6 +51,12 @@ public class HMM {
 		StringBuffer buffer = new StringBuffer("");
 		State docSentiment = State.POS;
 		Pattern header = Pattern.compile("[a-z]*_[a-z]*_[0-9]*");	//matches on review headers eg electronics_neg_7
+			
+		
+		
+		int counter = 0;
+		
+		ArrayList<HMM.State> reviewSentiments = new ArrayList<HMM.State>(); //temporary array to store sentiments in each review
 		
 		while(in.hasNextLine()) {
 			String next = in.nextLine();
@@ -54,9 +66,21 @@ public class HMM {
 				//TODO: Run the Viterbi algorithm since the global EPs was set by the above
 				HMM.State[] states = outputSentiment();
 				for(int i = 0; i < states.length; i++) {
-					System.out.println(states[i]);
+					
+					if (states[i] == HMM.State.POS)
+						System.out.println(numSentences + ",1");
+					else if (states[i] == HMM.State.NEG)
+						System.out.println(numSentences + ",-1");
+					else
+						System.out.println(numSentences + ",0");
+					
+					numSentences++;
 				}
 				
+				for (int i = 0; i < states.length; i++)
+					if (states[i] == currReview.get(i))
+						counter++;
+				currReview.clear();
 				review_lines.clear();
 				buffer.delete(0, buffer.length());		//Clear the buffer
 			}
@@ -77,8 +101,25 @@ public class HMM {
 				buffer.append(next.substring(4));		//Trim the "neu " off the front and add it to the buffer
 				buffer.append("\n");
 				review_lines.add(next.substring(4));
+				
+				//store sentiment in reviewSentiments
+				if (next.startsWith("pos"))
+					reviewSentiments.add(HMM.State.POS);
+				else if (next.startsWith("neg"))
+					reviewSentiments.add(HMM.State.NEG);
+				else
+					reviewSentiments.add(HMM.State.NEUT);
 			}
+			
+			
+			//store reviewSentiments into currReview
+			currReview = reviewSentiments;
+			
 		}
+		
+		
+		//System.out.println("Num Sentences: " + numSentences);
+		//System.out.println("Counter: " + counter);
 	}
 	
 	public void extractEPs(String data, HMM.State docSentiment) {				//Sets the global variable EPs based on the review
@@ -100,8 +141,8 @@ public class HMM {
 		while(reader.hasNextLine()){
 			double[] probs = {1.0, 1.0, 1.0};
 			ArrayList<String> features = new ArrayList<String>();
-			
 			String sentence = reader.nextLine();
+			
 			String processed = sentence.replaceAll("([(),!.?;:])", " $1 ").toLowerCase();	//add padding around punctuation
 			String[] words = processed.split("\\s+");						//split on whitespace
 			for(int a = 0; a < words.length; a++) {
@@ -121,7 +162,7 @@ public class HMM {
 				for(String w : features) {
 					double multiplier;
 					float polarity = lexiconPolarities.get(w);
-					if(polarity == 1.0f) {
+					/*if(polarity == 1.0f) {
 						multiplier = 2.0;
 					}
 					else if (polarity == .5f) {
@@ -133,7 +174,7 @@ public class HMM {
 					else if (polarity == -1.0f) {
 						multiplier = .5;
 					}
-					else multiplier = 1;
+					else multiplier = 1;*/ multiplier = 1;
 					probs[0] = probs[0] * posFPs.get(w) * multiplier * docMultiplier;
 					probs[1] = probs[1] * neuFPs.get(w);
 					probs[2] = probs[2] * negFPs.get(w) * (1.0 / multiplier) * (1.0 / docMultiplier);
@@ -146,6 +187,21 @@ public class HMM {
 		reader.close();
 		EPs = emissions;
 	}
+	
+	/*
+	 * Account for polarities when considering probabilities
+	 */
+	public void addPolarities(String[] sentence) {
+		int numWords = 0;
+		//check for number of words in each sentence that are in the lexicon
+		for (String s: sentence)
+			if (lexiconPolarities.containsKey(s))
+				numWords++;
+		
+		
+		
+	}
+	
 	
 	/*
 	 * Uses the Viterbi Algorithm to output sentiments for each review,

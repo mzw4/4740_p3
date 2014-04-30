@@ -499,10 +499,11 @@ public class SequenceTagger {
 	
 	public static void main(String[] args) {
 		SequenceTagger tagger = new SequenceTagger();
+		String filepath = "src/test_data_no_true_labels.txt";
 		
-		tagger.doBaselineTagging("src/training_data.txt");
+		tagger.doBaselineTagging(filepath);
 		
-		tagger.tag("src/training_data.txt");
+		tagger.tag(filepath);
 	
 		System.out.println("Done");
 	}
