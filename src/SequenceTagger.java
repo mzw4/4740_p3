@@ -151,7 +151,7 @@ public class SequenceTagger {
 				else if (line.startsWith("neu")) currState = HMM.State.NEUT;
 				else if (line.startsWith("neg")) currState = HMM.State.NEG;
 				else continue;			//Ignore lines not starting with "pos", "neu" or "neg", these are the review headers and the empty lines which are irrelevant
-				String processed = line.replaceAll("([(),!.?;:])", " $1 ");
+				String processed = line.replaceAll("([(),!.?;:])", " $1 ").toLowerCase();
 				String[] tokens = processed.split("\\s+");
 				
 				for(int a = 0; a < tokens.length; a++) {
