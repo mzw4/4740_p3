@@ -40,8 +40,8 @@ public class HMM {
 	}
 	
 	public void runHMM(String data) { //Prints output to screen in forms of "Pos", "Neu", "Neg"
-		
 		Scanner in = new Scanner(data);
+		ArrayList<String> review_lines = new ArrayList<>();
 		StringBuffer buffer = new StringBuffer("");
 		Pattern header = Pattern.compile("[a-z]*_[a-z]*_[0-9]*");	//matches on review headers eg electronics_neg_7
 		
@@ -51,13 +51,20 @@ public class HMM {
 				
 				extractEPs(buffer.toString());			//That's the end of the review so pass it to the EP extractor
 				//TODO: Run the Viterbi algorithm since the global EPs was set by the above
+				HMM.State[] states = outputSentiment(review_lines.toArray(new String[review_lines.size()]));
+				for(int i = 0; i < states.length; i++) {
+					System.out.println(states[i]);
+				}
 				
+				review_lines.clear();
 				buffer.delete(0, buffer.length());		//Clear the buffer
 			}
 			else if(header.matcher(next).matches()){	//It's the name of a review so ignore it
+				System.out.println(next);
 			}
 			else {										//It's a sentence of the review
 				buffer.append(next.substring(4));		//Trim the "neu " off the front and add it to the buffer
+				review_lines.add(next.substring(4));
 			}
 		}
 	}
@@ -117,7 +124,7 @@ public class HMM {
 	}
 	
 	/*
-	 * Uses the Viterbi Algorithm to output sentiment for each review,
+	 * Uses the Viterbi Algorithm to output sentiments for each review,
 	 * using the list of sentences and its sentiments
 	 */
 	public HMM.State[] outputSentiment(String[] observations) {

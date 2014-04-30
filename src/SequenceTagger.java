@@ -3,6 +3,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -36,6 +38,36 @@ public class SequenceTagger {
 		posFPs = new HashMap<String, Double>();
 		neuFPs = new HashMap<String, Double>();
 		negFPs = new HashMap<String, Double>();
+		
+		initialize();
+	}
+	
+	/*
+	 * Initialize tagger
+	 * Parse sentiment lexicon, train, and construct HMM
+	 */
+	private void initialize() {
+		parseSentimentLexicon("src/sentimentlexicon.tff");
+		train("src/training_data.txt");
+		hmm = new HMM(TPmap, initialProbMap);
+		hmm.addPolarities(lexiconPolarities);
+		hmm.addFPs(posFPs, neuFPs, negFPs);
+	}
+	
+	/*
+	 * Perform tagging, run the HMM
+	 */
+	public void tag(String filename) {
+		File file = new File(filename);
+		
+		String data = "";
+		try {
+			data = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+		hmm.runHMM(data);
 	}
 	
 	/*
@@ -94,7 +126,6 @@ public class SequenceTagger {
 	 * Train the tagger on the training data
 	 * Calculates TP and EP values
 	 */
-	
 	public void train(String filename) {
 		trainTPs(filename);
 		trainEPs(filename);
@@ -405,13 +436,11 @@ public class SequenceTagger {
 	
 	public static void main(String[] args) {
 		SequenceTagger tagger = new SequenceTagger();
-		tagger.parseSentimentLexicon("src/sentimentlexicon.tff");
-		tagger.train("src/training_data.txt");
-		HMM hmm = new HMM(tagger.getTPs(), tagger.getInitialProbs());
-		hmm.addPolarities(tagger.getLexiconPolarities());
-		hmm.addFPs(tagger.getPosFPs(), tagger.getNeuFPs(), tagger.getNegFPs());
 		
 		tagger.doBaselineTagging("src/training_data.txt");
+		
+		tagger.tag("src/training_data.txt");
+	
 		System.out.println("Done");
 	}
 }
