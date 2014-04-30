@@ -338,6 +338,7 @@ public class SequenceTagger {
 	
 	public HashMap<String, Double> getNegFPs() {
 		return negFPs;
+	}
 
 	/*
 	 * Perform baseline tagging predictions
