@@ -84,4 +84,65 @@ public class HMM {
 		
 		EPs = emissions;
 	}
+	
+	/*
+	 * Uses the Viterbi Algorithm to output sentiment for each review,
+	 * using the list of sentences and its sentiments
+	 */
+	public HMM.State[] outputSentiment(String[] observations) {
+		int obs_len = observations.length;
+		
+		double[][] t1 = new double[3][obs_len];
+		int[][] t2 = new int[3][obs_len];
+		
+		//store State enum into an array
+		HMM.State[] states = HMM.State.values();
+		
+		//initialize initial probability with start prob.
+		for (int i = 0; i < states.length; i++) {
+			t1[i][0] = StartProbs.get(states[i]) * EPs.get(1)[i];
+			t2[i][0] = 0;
+		}
+		
+		//determine best output by taking into every possible combination
+		for (int i = 1; i < obs_len; i++) {
+			for (int j = 0; j < states.length; j++) {
+				double maxVal = t1[0][0];
+				int maxIndex = 0;
+				for (int k = 0; k < states.length; k++) {
+					if (maxVal < t1[k][i-1]) {
+						maxVal = t1[k][i-1];
+						maxIndex = k;
+					}
+				}
+				
+				t1[j][i] = maxVal;
+				t2[j][i] = maxIndex;
+			}
+		}
+		
+		HMM.State[] path_prob = new HMM.State[obs_len];
+		int[] path_backpointer = new int[obs_len];
+		
+		//hold max
+		double curr_max = 0.0;
+		int max_index = 0;
+		for (int i = 0; i < states.length; i++) {
+			if (curr_max < t1[i][obs_len-1]) {
+				curr_max = t1[i][obs_len-1];
+				max_index = i;
+			}
+		}
+		
+		path_backpointer[obs_len-1] = max_index;
+		path_prob[obs_len-1] = states[path_backpointer[obs_len-1]];
+		
+		for (int i = obs_len-1; i >= 1; i--) {
+			path_backpointer[i-1] = t2[path_backpointer[i]][i];
+			path_prob[obs_len-1] = states[path_backpointer[i-1]];
+		}
+		
+		return path_prob;
+		
+	}
 }
