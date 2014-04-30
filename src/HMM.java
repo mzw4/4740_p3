@@ -51,7 +51,7 @@ public class HMM {
 				
 				extractEPs(buffer.toString());			//That's the end of the review so pass it to the EP extractor
 				//TODO: Run the Viterbi algorithm since the global EPs was set by the above
-				HMM.State[] states = outputSentiment(review_lines.toArray(new String[review_lines.size()]));
+				HMM.State[] states = outputSentiment();
 				for(int i = 0; i < states.length; i++) {
 					System.out.println(states[i]);
 				}
@@ -128,8 +128,8 @@ public class HMM {
 	 * Uses the Viterbi Algorithm to output sentiments for each review,
 	 * using the list of sentences and its sentiments
 	 */
-	public HMM.State[] outputSentiment(String[] observations) {
-		int obs_len = observations.length;
+	public HMM.State[] outputSentiment() {
+		int obs_len = EPs.size();
 		
 		double[][] t1 = new double[3][obs_len];
 		int[][] t2 = new int[3][obs_len];
