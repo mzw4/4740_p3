@@ -156,6 +156,24 @@ public class SequenceTagger {
 	}
 	
 	/*
+	 * Uses the Viterbi Algorithm to output sentiment for each review,
+	 * using the list of sentences and its sentiments
+	 */
+	public void outputSentiment(String[] observations) {
+		//store prob. of most likely sentiments
+		Float[][] mostLikely = new Float[3][observations.length];
+		
+		//store State enum into an array
+		HMM.State[] states = HMM.State.values();
+		
+		//initialize initial probability with start prob.
+		for (int i = 0; i < 3; i++) {
+			mostLikely[i][0] = initialProbMap.get(states[i]) * hmm.EPs.get()[i];
+		}
+		
+	}
+	
+	/*
 	 * Increments the count for initial state probabilities
 	 */
 	private void updateInitialProbMap(HMM.State state) {
