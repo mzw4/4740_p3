@@ -3,9 +3,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
-
+import java.util.regex.Pattern;
 
 public class SequenceTagger {
 	private HMM hmm;
@@ -23,9 +24,10 @@ public class SequenceTagger {
 	private HashMap<String, Double> neuFPs;
 	private HashMap<String, Double> negFPs;
 	
-	private final float strongTypeWeight = 1.0f;
-	private final float weakTypeWeight = 0.5f;
 	private final int GOOD_TURING_K = 5;
+	private final float strongTypeWeight = 1f;
+	private final float weakTypeWeight = 0.7f;
+	private final float FEATURE_LENGTH_THRESHOLD = 0.52f;
 		
 	public SequenceTagger() {
 		TPmap = new HashMap<HMM.State, HashMap<HMM.State, Float>>();
@@ -82,10 +84,10 @@ public class SequenceTagger {
 			e.printStackTrace();
 		}
 		
-		System.out.println("Sentiment lexicon scores:");
-		for(String s: lexiconPolarities.keySet()) {
-			System.out.println(s + ": " + lexiconPolarities.get(s));
-		}
+//		System.out.println("Sentiment lexicon scores:");
+//		for(String s: lexiconPolarities.keySet()) {
+//			System.out.println(s + ": " + lexiconPolarities.get(s));
+//		}
 	}
 	
 	/*
@@ -263,26 +265,26 @@ public class SequenceTagger {
 		}
 		
 		// Test that they sum to 1
-		float sum = 0;
-		for(HMM.State state1: TPmap.keySet()) {
-			System.out.println(state1 + ":");
-			
-			HashMap<HMM.State, Float> map = TPmap.get(state1);
-			for(HMM.State state2: map.keySet()) {
-				System.out.print(state2 + ": " + map.get(state2) + ", ");
-				sum += map.get(state2);
-			}
-			System.out.println();
-		}
-		System.out.println(sum);
-		
-		sum = 0;
-		System.out.println("Initial probabilities:");
-		for(HMM.State state: TPmap.keySet()) {
-			System.out.println(state + ": " + initialProbMap.get(state));
-			sum +=initialProbMap.get(state);
-		}
-		System.out.println(sum);
+//		float sum = 0;
+//		for(HMM.State state1: TPmap.keySet()) {
+//			System.out.println(state1 + ":");
+//			
+//			HashMap<HMM.State, Float> map = TPmap.get(state1);
+//			for(HMM.State state2: map.keySet()) {
+//				System.out.print(state2 + ": " + map.get(state2) + ", ");
+//				sum += map.get(state2);
+//			}
+//			System.out.println();
+//		}
+//		System.out.println(sum);
+//		
+//		sum = 0;
+//		System.out.println("Initial probabilities:");
+//		for(HMM.State state: TPmap.keySet()) {
+//			System.out.println(state + ": " + initialProbMap.get(state));
+//			sum +=initialProbMap.get(state);
+//		}
+//		System.out.println(sum);
 	}
 	
 	/*
@@ -337,6 +339,69 @@ public class SequenceTagger {
 	public HashMap<String, Double> getNegFPs() {
 		return negFPs;
 	}
+
+	/*
+	 * Perform baseline tagging predictions
+	 */
+	private void doBaselineTagging(String filename) {
+		File file = new File(filename);
+		
+		int numSentences = 0;
+		int numCorrect = 0;
+		
+		BufferedReader reader;
+		try {
+			reader = new BufferedReader(new FileReader(file));
+			String line;
+			Pattern header = Pattern.compile("[a-z]*_[a-z]*_[0-9]*");	//matches on review headers eg electronics_neg_7
+
+			while((line = reader.readLine()) != null) {
+				if(header.matcher(line).matches()) {
+					System.out.println(line);
+					continue;
+				}
+				
+				line = line.replaceAll("[^a-zA-Z ]", " ");
+				if(line.length() == 0) continue;
+				
+				String[] tokens = line.split(" ");
+				ArrayList<String> features = new ArrayList<>();
+				float score = 0;
+				int numFeatures = 0;
+				for(String s: tokens) {
+					if(lexiconPolarities.containsKey(s)) {
+						score += lexiconPolarities.get(s);
+						numFeatures ++;
+						features.add(s);
+					}
+				}
+				
+				HMM.State sentiment;
+				if(numFeatures == 0) {
+					sentiment = HMM.State.NEUT;
+				} else if(score >= numFeatures * FEATURE_LENGTH_THRESHOLD) {
+					sentiment = HMM.State.POS;
+				} else if(score <= -numFeatures * FEATURE_LENGTH_THRESHOLD) {
+					sentiment = HMM.State.NEG;
+				} else {
+					sentiment = HMM.State.NEUT;
+				}
+
+				numSentences++;
+				if(tokens[0].equals("pos") && sentiment == HMM.State.POS ||
+					tokens[0].equals("neg") && sentiment == HMM.State.NEUT || 
+					tokens[0].equals("neu") && sentiment == HMM.State.NEG) {
+					numCorrect++;
+				}	
+				System.out.println(sentiment);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Baseline performed with " + (float)numCorrect/numSentences + "% accuracy.");
+	}
 	
 	public static void main(String[] args) {
 		SequenceTagger tagger = new SequenceTagger();
@@ -345,6 +410,8 @@ public class SequenceTagger {
 		HMM hmm = new HMM(tagger.getTPs(), tagger.getInitialProbs());
 		hmm.addPolarities(tagger.getLexiconPolarities());
 		hmm.addFPs(tagger.getPosFPs(), tagger.getNeuFPs(), tagger.getNegFPs());
+		
+		tagger.doBaselineTagging("src/training_data.txt");
 		System.out.println("Done");
 	}
 }
