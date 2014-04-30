@@ -13,6 +13,11 @@ public class HMM {
 	private State state;
 	private HashMap<HMM.State, HashMap<HMM.State, Float>> TPMap;
 	private HashMap<HMM.State, Float> StartProbs;
+	
+	private HashMap<String, Double> posFPs = new HashMap<String, Double>();
+	private HashMap<String, Double> neuFPs = new HashMap<String, Double>();
+	private HashMap<String, Double> negFPs = new HashMap<String, Double>();
+	
 	private ArrayList<double[]> EPs;	//EPs.get(a)[0] gives probability of "Pos"
 																	//[1] gives "Neu" and [2] gives "Neg"
 	
@@ -27,6 +32,12 @@ public class HMM {
 	
 	public void addPolarities(HashMap<String, Float> data) {
 		lexiconPolarities = data;
+	}
+	
+	public void addFPs(HashMap<String, Double> pos, HashMap<String, Double> neu, HashMap<String, Double> neg) {
+		posFPs = pos;
+		neuFPs = neu;
+		negFPs = neg;
 	}
 	
 	public void runHMM(String data) { //Prints output to screen in forms of "Pos", "Neu", "Neg"
@@ -68,6 +79,7 @@ public class HMM {
 			}
 			
 			//TODO: Take this score and transform it into the emission probabilities that we want
+			
 		}
 		
 		EPs = emissions;
