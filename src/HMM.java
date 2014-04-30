@@ -138,11 +138,11 @@ public class HMM {
 		
 		//initialize initial probability with start prob.
 		for (int i = 0; i < states.length; i++) {
-			t1[i][0] = StartProbs.get(states[i]) * EPs.get(1)[i];
+			t1[i][0] = StartProbs.get(states[i]) * EPs.get(0)[i];
 			t2[i][0] = 0;
 		}
 		
-		//determine best output by taking into every possible combination
+		//determine best output by considering possible combinations
 		for (int i = 1; i < obs_len; i++) {
 			for (int j = 0; j < states.length; j++) {
 				double maxVal = t1[0][0];
