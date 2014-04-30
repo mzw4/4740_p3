@@ -242,6 +242,69 @@ public class SequenceTagger {
 		return smoothedData;
 	}
 	
+	
+	/*
+	 * Laplacian smoothing
+	 */
+	public HashMap<String, Double> LaplacianSmoothing(HashMap<String, Double> data) {
+		HashMap<String, Double> smoothedData = new HashMap<String, Double>();
+		Iterator<Double> iterator = data.values().iterator();
+		int counts[] = new int[GOOD_TURING_K + 2];
+		
+		//Initialize values to 0
+		for(int a = 0; a < counts.length; a++) {
+			counts[a] = 0;
+		}
+		
+		while(iterator.hasNext()) {
+			double val = iterator.next();
+			if (val >= 0 && val <= GOOD_TURING_K) {
+				counts[(int) val] = counts[(int) val] + 1;
+			}
+		}
+		
+		double c_stars[] = new double[GOOD_TURING_K + 1];
+		c_stars[0] = (double) counts[1]; //initalize c_star[0] to be N_1
+		
+		for(int a = 1; a <= GOOD_TURING_K; a++) {
+			//use the Katz 1987 formula (page 103 of the book) to calculate c_star given the value k
+			double c = (double) a;
+			
+			double katz_numerator = ((c+1) * ((double) counts[a+1])/((double) counts[a])) - 
+									(c * (((double) (GOOD_TURING_K + 1) * counts[a+1]) / counts[a]));
+			double katz_denominator = (double) (1 - (((double) (GOOD_TURING_K + 1) * counts[a+1]) / (double) counts[a]));
+			
+			c_stars[a] = katz_numerator / katz_denominator;
+		}
+		
+		//Now iterate over the strings and replace the old values with the new smoothed values
+		Iterator<String> stringIterator = data.keySet().iterator();
+		
+		while(stringIterator.hasNext()) {
+			String nextWord = stringIterator.next();
+			double unsmoothedCount = data.get(nextWord);
+			
+			if(unsmoothedCount >= 0 && unsmoothedCount <= GOOD_TURING_K) {
+				smoothedData.put(nextWord, c_stars[(int) unsmoothedCount]);
+			}
+			else smoothedData.put(nextWord, unsmoothedCount);
+		}
+		
+		//Sum the total number of "values" given the new smoothed counts
+		double total = 0;
+		for(Double d : smoothedData.values()) {
+			total += d;
+		}
+		
+		//Now transform the values into percentages
+		for(String s : smoothedData.keySet()) {
+			smoothedData.put(s, (smoothedData.get(s) / total));
+		}
+		
+		return smoothedData;
+	}
+	
+	
 	/*
 	 * Trains the TPs
 	 */

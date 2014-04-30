@@ -146,17 +146,20 @@ public class HMM {
 		//determine best output by considering possible combinations
 		for (int i = 1; i < obs_len; i++) {
 			for (int j = 0; j < states.length; j++) {
-				double maxVal = t1[0][0];
+				double maxVal = 0.0;
 				int maxIndex = 0;
 				for (int k = 0; k < states.length; k++) {
-					if (maxVal < t1[k][i-1]) {
-						maxVal = t1[k][i-1];
+					double currVal = t1[k][i-1] * TPMap.get(states[k]).get(states[j]) * EPs.get(i)[j];
+					
+					if (maxVal < currVal) {
+						maxVal = currVal;
 						maxIndex = k;
 					}
 				}
 				
 				t1[j][i] = maxVal;
 				t2[j][i] = maxIndex;
+				
 			}
 		}
 		
@@ -178,7 +181,7 @@ public class HMM {
 		
 		for (int i = obs_len-1; i >= 1; i--) {
 			path_backpointer[i-1] = t2[path_backpointer[i]][i];
-			path_prob[obs_len-1] = states[path_backpointer[i-1]];
+			path_prob[i-1] = states[path_backpointer[i-1]];
 		}
 		
 		return path_prob;
