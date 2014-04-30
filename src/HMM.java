@@ -188,20 +188,6 @@ public class HMM {
 		EPs = emissions;
 	}
 	
-	/*
-	 * Account for polarities when considering probabilities
-	 */
-	public void addPolarities(String[] sentence) {
-		int numWords = 0;
-		//check for number of words in each sentence that are in the lexicon
-		for (String s: sentence)
-			if (lexiconPolarities.containsKey(s))
-				numWords++;
-		
-		
-		
-	}
-	
 	
 	/*
 	 * Uses the Viterbi Algorithm to output sentiments for each review,
