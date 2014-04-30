@@ -17,6 +17,8 @@ public class SequenceTagger {
 	private int numEntries = 0;
 	
 	private HashMap<String, Float> lexiconPolarities = new HashMap<String, Float>();
+	
+	//In the end the FP sets represent P(F_i | S_i), S being a sentiment, after Good-Turing smoothing. The features are every word in the given sentiment lexicon
 	private HashMap<String, Double> posFPs;
 	private HashMap<String, Double> neuFPs;
 	private HashMap<String, Double> negFPs;
@@ -26,9 +28,12 @@ public class SequenceTagger {
 	private final int GOOD_TURING_K = 5;
 		
 	public SequenceTagger() {
-		TPmap = new HashMap<>();
-		initialProbMap = new HashMap<>();
-		lexiconPolarities = new HashMap<>();
+		TPmap = new HashMap<HMM.State, HashMap<HMM.State, Float>>();
+		initialProbMap = new HashMap<HMM.State, Float>();
+		lexiconPolarities = new HashMap<String, Float>();
+		posFPs = new HashMap<String, Double>();
+		neuFPs = new HashMap<String, Double>();
+		negFPs = new HashMap<String, Double>();
 	}
 	
 	/*
@@ -97,6 +102,12 @@ public class SequenceTagger {
 		File file = new File(filename);
 		BufferedReader reader;
 		
+		for(String s : lexiconPolarities.keySet()) {
+			posFPs.put(s, 0.0);
+			neuFPs.put(s, 0.0);
+			negFPs.put(s, 0.0);
+		}
+		
 		try{
 			reader = new BufferedReader(new FileReader(file));
 			String line;
@@ -113,17 +124,11 @@ public class SequenceTagger {
 				for(int a = 0; a < tokens.length; a++) {
 					if(lexiconPolarities.containsKey(tokens[a])) {				//If the word is contained in the sentiment lexicon, process it
 						switch (currState) {
-						case POS: 	if(posFPs.containsKey(tokens[a])) {
-										posFPs.put(tokens[a], posFPs.get(tokens[a]) + 1.0);
-									} else posFPs.put(tokens[a], 1.0);
+						case POS: 	posFPs.put(tokens[a], posFPs.get(tokens[a]) + 1.0);
 									break;
-						case NEUT:	if(neuFPs.containsKey(tokens[a])) {
-										neuFPs.put(tokens[a], neuFPs.get(tokens[a]) + 1.0);
-									} else neuFPs.put(tokens[a], 1.0);
+						case NEUT:	neuFPs.put(tokens[a], neuFPs.get(tokens[a]) + 1.0);
 									break;
-						case NEG:	if(negFPs.containsKey(tokens[a])) {
-										negFPs.put(tokens[a], negFPs.get(tokens[a]) + 1.0);
-									} else negFPs.put(tokens[a], 1.0);
+						case NEG:	negFPs.put(tokens[a], negFPs.get(tokens[a]) + 1.0);
 									break;
 						default:	break;
 						}
@@ -188,6 +193,17 @@ public class SequenceTagger {
 				smoothedData.put(nextWord, c_stars[(int) unsmoothedCount]);
 			}
 			else smoothedData.put(nextWord, unsmoothedCount);
+		}
+		
+		//Sum the total number of "values" given the new smoothed counts
+		double total = 0;
+		for(Double d : smoothedData.values()) {
+			total += d;
+		}
+		
+		//Now transform the values into percentages
+		for(String s : smoothedData.keySet()) {
+			smoothedData.put(s, (smoothedData.get(s) / total));
 		}
 		
 		return smoothedData;

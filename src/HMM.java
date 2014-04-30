@@ -22,8 +22,7 @@ public class HMM {
 																	//[1] gives "Neu" and [2] gives "Neg"
 	
 	private HashMap<String, Float> lexiconPolarities;
-	
-	private static final float NEUTRAL_BENCHMARK = 2.0f;
+	private final double NEUTRAL_INIT = 3.0;
 	
 	public HMM(HashMap<HMM.State, HashMap<HMM.State, Float>> transitions, HashMap<HMM.State, Float> SPs) {	
 		TPMap = transitions;
@@ -64,24 +63,56 @@ public class HMM {
 	}
 	
 	public void extractEPs(String data) {				//Sets the global variable EPs based on the review
-		float score = 0;
 		ArrayList<double[]> emissions = new ArrayList<double[]>();
 		
 		Scanner reader = new Scanner(data);
 		while(reader.hasNextLine()){
+			double[] probs = {1.0, 1.0, 1.0};
+			ArrayList<String> features = new ArrayList<String>();
+			
 			String sentence = reader.nextLine();
 			String processed = sentence.replaceAll("([(),!.?;:])", " $1 ");	//add padding around punctuation
 			String[] words = processed.split("\\s+");						//split on whitespace
 			for(int a = 0; a < words.length; a++) {
 				if(lexiconPolarities.containsKey(words[a])) {
-					score += lexiconPolarities.get(words[a]);
+					features.add(words[a]);
 				}
 			}
 			
-			//TODO: Take this score and transform it into the emission probabilities that we want
-			
+			if(features.size() == 0) {
+				probs[0] = 0;
+				probs[1] = 1;
+				probs[2] = 0;
+				emissions.add(probs);
+			}
+			else {
+				//Find positive, negative, and neutral probabilities
+				for(String w : features) {
+					double multiplier;
+					float polarity = lexiconPolarities.get(w);
+					if(polarity == 1.0f) {
+						multiplier = 2.0;
+					}
+					else if (polarity == .5f) {
+						multiplier = 1.5;
+					}
+					else if (polarity == -.5f) {
+						multiplier = 2.0/3.0;
+					}
+					else if (polarity == -1.0f) {
+						multiplier = .5;
+					}
+					else multiplier = 0;
+					probs[0] = probs[0] * posFPs.get(w) * multiplier;
+					probs[1] = probs[1] * neuFPs.get(w);
+					probs[2] = probs[2] * negFPs.get(w) * (1.0 / multiplier);
+				}
+				probs[1] = probs[1] * (NEUTRAL_INIT / (NEUTRAL_INIT + features.size()));	//multiply neutral by PARAM / (PARAM + numFeatures))
+				emissions.add(probs);
+			}
 		}
 		
+		reader.close();
 		EPs = emissions;
 	}
 }
