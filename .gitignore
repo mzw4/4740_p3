@@ -29,6 +29,7 @@ local.properties
 
 # TeXlipse plugin
 .texlipse
+<<<<<<< HEAD
 /bin
 /bin
 /bin
@@ -76,3 +77,6 @@ local.properties
 /bin
 /bin
 /bin
+=======
+/bin1
+>>>>>>> Baseline tagger finished
