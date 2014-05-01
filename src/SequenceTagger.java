@@ -26,6 +26,7 @@ public class SequenceTagger {
 	private HashMap<String, Double> neuFPs;
 	private HashMap<String, Double> negFPs;
 	
+	private final int LAPLACE_K = 1;
 	private final int GOOD_TURING_K = 5;
 	private final float strongTypeWeight = 1f;
 	private final float weakTypeWeight = 0.7f;
@@ -172,9 +173,13 @@ public class SequenceTagger {
 				//This finishes the processing of the line
 			}
 			//Now all the lines of the document are processed, we need to smooth and convert the raw values to the relevant percentages
-			posFPs = smooth(posFPs);
-			negFPs = smooth(negFPs);
-			neuFPs = smooth(neuFPs);
+			//posFPs = smooth(posFPs);
+			//negFPs = smooth(negFPs);
+			//neuFPs = smooth(neuFPs);
+			
+			posFPs = laplaceSmoothing(posFPs);
+			negFPs = laplaceSmoothing(negFPs);
+			neuFPs = laplaceSmoothing(neuFPs);
 		}
 		catch(FileNotFoundException e) {
 			e.printStackTrace();
@@ -244,37 +249,23 @@ public class SequenceTagger {
 	
 	
 	/*
-	 * Laplacian smoothing
+	 * Laplace smoothing
 	 */
-	public HashMap<String, Double> LaplacianSmoothing(HashMap<String, Double> data) {
+	public HashMap<String, Double> laplaceSmoothing(HashMap<String, Double> data) {
 		HashMap<String, Double> smoothedData = new HashMap<String, Double>();
 		Iterator<Double> iterator = data.values().iterator();
-		int counts[] = new int[GOOD_TURING_K + 2];
 		
-		//Initialize values to 0
-		for(int a = 0; a < counts.length; a++) {
-			counts[a] = 0;
+		double[] c_stars = new double[data.size()];
+		
+		//place strings in hashmap data into array for easier mapping
+		ArrayList<String> str = new ArrayList<String>();
+		for (String s: data.keySet()) {
+			str.add(s);
 		}
 		
-		while(iterator.hasNext()) {
-			double val = iterator.next();
-			if (val >= 0 && val <= GOOD_TURING_K) {
-				counts[(int) val] = counts[(int) val] + 1;
-			}
-		}
-		
-		double c_stars[] = new double[GOOD_TURING_K + 1];
-		c_stars[0] = (double) counts[1]; //initalize c_star[0] to be N_1
-		
-		for(int a = 1; a <= GOOD_TURING_K; a++) {
-			//use the Katz 1987 formula (page 103 of the book) to calculate c_star given the value k
-			double c = (double) a;
-			
-			double katz_numerator = ((c+1) * ((double) counts[a+1])/((double) counts[a])) - 
-									(c * (((double) (GOOD_TURING_K + 1) * counts[a+1]) / counts[a]));
-			double katz_denominator = (double) (1 - (((double) (GOOD_TURING_K + 1) * counts[a+1]) / (double) counts[a]));
-			
-			c_stars[a] = katz_numerator / katz_denominator;
+		for (int i = 0; i < c_stars.length; i++) {
+			String curr_string = str.get(i);
+			c_stars[i] = (data.get(curr_string) + LAPLACE_K) * (c_stars.length/3);
 		}
 		
 		//Now iterate over the strings and replace the old values with the new smoothed values
@@ -284,10 +275,7 @@ public class SequenceTagger {
 			String nextWord = stringIterator.next();
 			double unsmoothedCount = data.get(nextWord);
 			
-			if(unsmoothedCount >= 0 && unsmoothedCount <= GOOD_TURING_K) {
-				smoothedData.put(nextWord, c_stars[(int) unsmoothedCount]);
-			}
-			else smoothedData.put(nextWord, unsmoothedCount);
+			smoothedData.put(nextWord, c_stars[(int) unsmoothedCount]);	
 		}
 		
 		//Sum the total number of "values" given the new smoothed counts
